@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+let SECRET = process.env.SECRET;
 let PORT = process.env.PORT;
 let MONGODB_URI =
   process.env.NODE_ENV === 'test'
@@ -9,4 +10,5 @@ let MONGODB_URI =
 module.exports = {
   MONGODB_URI,
   PORT,
+  SECRET,
 };
