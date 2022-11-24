@@ -7,31 +7,25 @@ const config = require('../utils/config');
 
 const jwt = require('jsonwebtoken');
 
-const getTokenFrom = (request) => {
-  const authorization = request.get('authorization');
-  if (authorization && authorization.toLowerCase().startsWith('bearer ')) {
-    return authorization.substring(7);
-  }
-  return null;
-};
 
 blogRouter.get('/', async (req, res) => {
   const blogs = await Blog.find({}).populate('user', {
     username: 1,
     name: 1,
+    id: 1,
   });
   res.json(blogs);
 });
 
 blogRouter.post('/', async (req, res, next) => {
+  const body = req.body;
+
   const { title, author, url, likes, id } = req.body;
 
-  
-   const token = getTokenFrom(req);
-  //  const decodedToken = jwt.verify(token, config.SECRET);
-  // if (!token || !decodedToken.id) {
-  //   return res.status(401).json({ error: 'token missing or invalid' });
-  // }
+  const decodedToken = jwt.verify(req.token, config.SECRET);
+  if (!decodedToken.id) {
+    return res.status(401).json({ error: 'token missing or invalid' });
+  }
   const user = await User.find({});
 
   const blog = new Blog({
@@ -43,6 +37,9 @@ blogRouter.post('/', async (req, res, next) => {
   });
 
   const savedBlog = await blog.save();
+  user.blogs = user.blogs.concat(savedBlog._id);
+  // user.blogs = user.blogs.concat(savedBlog._id);
+  // await user.save();
   res.status(201).json(savedBlog);
 });
 
@@ -63,6 +60,19 @@ blogRouter.get('/:id', async (req, res, next) => {
 });
 
 blogRouter.delete('/:id', async (req, res, next) => {
+  const decodedToken = jwt.verify(req.token, config.SECRET);
+  if (!decodedToken.id) {
+    return res.status(401).json({ error: 'token missing or invalid' });
+  }
+
+  const blog = await Blog.findById(req.params.id);
+  if (blog.user.toString() === decodedToken.id.toString()) {
+    await Blog.findByIdAndDelete(req.params.id);
+    res.status(204).end();
+  } else {
+    res.status(401).json({ error: 'token missing or invalid' });
+  }
+
   await Blog.findByIdAndDelete(req.params.id);
   res.status(204).end();
 });

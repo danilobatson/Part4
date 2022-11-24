@@ -3,7 +3,6 @@ const express = require('express');
 const app = express();
 require('express-async-errors');
 
-
 const cors = require('cors');
 const loginRouter = require('./controllers/login');
 
@@ -16,6 +15,7 @@ const {
   requestLogger,
   unknownEndpoint,
   errorHandler,
+  getTokenFrom,
 } = require('./utils/middleware');
 
 const url = config.MONGODB_URI;
@@ -35,6 +35,8 @@ mongoose
 app.use(cors());
 app.use(express.json());
 app.use(requestLogger);
+
+app.use(getTokenFrom);
 
 app.use('/api/login', loginRouter);
 app.use('/api/blogs', blogRouter);

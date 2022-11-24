@@ -1,4 +1,5 @@
 const { info, error } = require('./logger');
+const config = require('./config');
 
 const requestLogger = (request, response, next) => {
   info('Method:', request.method);
@@ -22,13 +23,30 @@ const errorHandler = (error, request, response, next) => {
     return response.status(401).json({
       error: 'invalid token',
     });
+  } else if (error.name === 'JsonWebTokenError') {
+    return response.status(401).json({
+      error: 'token expired',
+    });
   }
-
+  error(error.message);
   next(error);
 };
+
+const getTokenFrom = (request, response, next) => {
+  const authorization = request.get('authorization');
+  if (authorization && authorization.toLowerCase().startsWith('bearer ')) {
+    return authorization.substring(7);
+  }
+  next();
+};
+
+
+
+
 
 module.exports = {
   requestLogger,
   unknownEndpoint,
   errorHandler,
+  getTokenFrom,
 };
