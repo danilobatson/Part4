@@ -1,12 +1,11 @@
 const blogRouter = require('express').Router();
+const jwt = require('jsonwebtoken');
+
 const Blog = require('../models/blogs');
 const User = require('../models/users');
 
 const { info, error } = require('../utils/logger');
 const config = require('../utils/config');
-
-const jwt = require('jsonwebtoken');
-
 
 blogRouter.get('/', async (req, res) => {
   const blogs = await Blog.find({}).populate('user', {
@@ -18,38 +17,27 @@ blogRouter.get('/', async (req, res) => {
 });
 
 blogRouter.post('/', async (req, res, next) => {
-  const body = req.body;
-
-  const { title, author, url, likes, id } = req.body;
-
+  if (!req.user) {
+    return res.status(401).json({ error: 'token missing or invalid' });
+  }
   const decodedToken = jwt.verify(req.token, config.SECRET);
   if (!decodedToken.id) {
     return res.status(401).json({ error: 'token missing or invalid' });
   }
-  const user = await User.find({});
 
-  const blog = new Blog({
-    title,
-    author,
-    url,
-    likes: likes || 0,
-    user: user._id,
-  });
+  const user = req.user;
+  const blog = new Blog({ ...req.body, user: user._id });
 
   const savedBlog = await blog.save();
   user.blogs = user.blogs.concat(savedBlog._id);
-  // user.blogs = user.blogs.concat(savedBlog._id);
-  // await user.save();
-  res.status(201).json(savedBlog);
+  await user.save();
 });
 
 blogRouter.put('/:id', async (req, res, next) => {
-  const body = req.body;
-  const blog = {
-    author: body.author,
-  };
-
-  const updatedBlog = await Blog.findByIdAndUpdate(req.params.id, blog);
+  const blog = req.body;
+  const updatedBlog = await Blog.findByIdAndUpdate(req.params.id, blog, {
+    new: true, runValidators: true, context: 'query',
+  });
   res.json(updatedBlog);
 });
 
@@ -66,11 +54,13 @@ blogRouter.delete('/:id', async (req, res, next) => {
   }
 
   const blog = await Blog.findById(req.params.id);
-  if (blog.user.toString() === decodedToken.id.toString()) {
-    await Blog.findByIdAndDelete(req.params.id);
-    res.status(204).end();
-  } else {
-    res.status(401).json({ error: 'token missing or invalid' });
+  if (!blog) {
+    return res.status(404).end();
+  }
+  if (blog.user && blog.user.toString() !== req.user.id) {
+    return res
+      .status(401)
+      .json({ error: 'only the creator can delete a blog' });
   }
 
   await Blog.findByIdAndDelete(req.params.id);
