@@ -6,6 +6,7 @@ require('express-async-errors');
 
 const cors = require('cors');
 const blogRouter = require('./controllers/blogs');
+const usersRouter = require('./controllers/users');
 
 const { info, error } = require('./utils/logger');
 const mongoose = require('mongoose');
@@ -34,6 +35,7 @@ app.use(express.json());
 app.use(requestLogger);
 
 app.use('/api/blogs', blogRouter);
+app.use('/api/users', usersRouter);
 
 app.use(unknownEndpoint);
 app.use(errorHandler);
